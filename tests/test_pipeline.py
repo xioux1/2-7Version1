@@ -46,3 +46,19 @@ def test_pipeline_main_returns_expected_columns():
 
     assert isinstance(result, pd.DataFrame)
     assert list(result.columns) == ['Id', 'ranker_id', 'selected']
+
+
+def test_encode_categoricals_encodes_union_int32():
+    X = pd.DataFrame({'cat': ['a', 'b', 'c']})
+    X_test = pd.DataFrame({'cat': ['b', 'd']})
+
+    X_enc, X_test_enc, cats = pipeline.encode_categoricals(X.copy(), X_test.copy())
+
+    assert cats == ['cat']
+    assert X_enc['cat'].dtype == np.int32
+    assert X_test_enc['cat'].dtype == np.int32
+    # union of 4 categories should produce 4 unique codes
+    combined = pd.concat([X_enc['cat'], X_test_enc['cat']])
+    assert len(set(combined.tolist())) == 4
+    # ensure new category from test isn't mapped to -1
+    assert -1 not in X_test_enc['cat'].values
