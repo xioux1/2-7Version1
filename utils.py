@@ -148,6 +148,24 @@ def reduce_mem_usage(df, verbose=True):
         print(f"Mem. usage decreased to {end_mem:5.2f} Mb ({100 * (start_mem - end_mem) / start_mem:.1f}% reduction)")
     return df
 
+def log_mem_usage(df: pd.DataFrame, label: str = "") -> None:
+    """Print memory usage information for ``df``.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The dataframe whose memory footprint should be logged.
+    label : str, optional
+        Descriptive label printed alongside the memory stats.
+    """
+
+    tag = f"[{label}] " if label else ""
+    usage = df.memory_usage(deep=True)
+    total_mb = usage.sum() / 1024 ** 2
+    print(f"{tag}Memory usage (deep):")
+    print(usage.to_string())
+    print(f"{tag}Total: {total_mb:.2f} MB")
+
 def calculate_hit_rate_at_3(df_preds_with_true_and_rank):
     """Calculates HitRate@3."""
     hits = 0

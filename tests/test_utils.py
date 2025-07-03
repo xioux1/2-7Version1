@@ -80,3 +80,10 @@ def test_smart_fill_numeric_fills_and_downcasts():
     assert out["bin2"].tolist() == [0, 1, 1]
     assert out["bin2"].dtype == np.int8
     assert out["other"].isna().tolist() == [False, True, False]
+
+
+def test_log_mem_usage_outputs(capsys):
+    df = pd.DataFrame({"a": [1, 2, 3]})
+    utils.log_mem_usage(df, "dummy")
+    captured = capsys.readouterr()
+    assert "dummy" in captured.out
