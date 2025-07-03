@@ -254,10 +254,13 @@ def train_model(X, y, X_test, ranker_ids, cat_features):
 def main():
     train_df, test_df, sample_submission_df, test_ids_df = load_data()
     train_df_processed = preprocess_dataframe(train_df, is_train=True)
+    gc.collect()
     test_df_processed = preprocess_dataframe(test_df, is_train=False)
+    gc.collect()
     del train_df, test_df
     gc.collect()
     X, y, X_test, ranker_ids = prepare_matrices(train_df_processed, test_df_processed)
+    gc.collect()
     del train_df_processed, test_df_processed
     gc.collect()
 
@@ -270,8 +273,10 @@ def main():
             X_test = unify_nan_strategy(X_test)
 
     X, X_test, cat_features = encode_categoricals(X, X_test)
+    gc.collect()
     # Use the same low_var_thresh across all scripts
     X, X_test, _ = clean_features(X, X_test, low_var_thresh=1)
+    gc.collect()
     preds, _ = train_model(X, y, X_test, ranker_ids, cat_features)
     submission_df = test_ids_df.copy()
     submission_df['score'] = preds
