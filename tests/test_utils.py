@@ -64,3 +64,19 @@ def test_calculate_hit_rate_at_3():
 
     hr = utils.calculate_hit_rate_at_3(df)
     assert hr == 0.5
+
+
+def test_smart_fill_numeric_fills_and_downcasts():
+    df = pd.DataFrame({
+        "bin1": [1, np.nan, 0],
+        "bin2": pd.Series([pd.NA, 1, 1], dtype="Int64"),
+        "other": [1.5, np.nan, 3.2],
+    })
+
+    out = utils.smart_fill_numeric(df.copy(), zero_cols=["bin1", "bin2"])
+
+    assert out["bin1"].tolist() == [1, 0, 0]
+    assert out["bin1"].dtype == np.int8
+    assert out["bin2"].tolist() == [0, 1, 1]
+    assert out["bin2"].dtype == np.int8
+    assert out["other"].isna().tolist() == [False, True, False]

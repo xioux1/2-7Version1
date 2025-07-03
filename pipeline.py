@@ -14,6 +14,7 @@ from utils import (
     clean_features,
     calculate_hit_rate_at_3,
     lgb_hit_rate_at_3,
+    smart_fill_numeric,
 )
 
 # --- columnas que quiero ignorar en TODO el pipeline ---
@@ -84,6 +85,13 @@ def preprocess_dataframe(df, is_train=True):
         df[c] = df[c].astype('category')
     if 'frequentFlyer' in df.columns and pd.api.types.is_categorical_dtype(df['frequentFlyer']):
         df['frequentFlyer'] = df['frequentFlyer'].cat.add_categories(['']).fillna('')
+    binary_candidates = df.select_dtypes(include=['number', 'bool']).columns
+    binary_cols = []
+    for c in binary_candidates:
+        vals = df[c].dropna().unique()
+        if len(vals) <= 2 and set(vals).issubset({0, 1}):
+            binary_cols.append(c)
+    df = smart_fill_numeric(df, zero_cols=binary_cols)
     df = reduce_mem_usage(df)
     df = create_features(df)
     df = create_remaining_features(df, is_train=is_train)
