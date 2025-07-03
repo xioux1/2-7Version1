@@ -1,0 +1,66 @@
+import pandas as pd
+import numpy as np
+
+import utils
+
+
+def test_unify_nan_strategy_flags_and_nan_preservation():
+    df = pd.DataFrame({
+        "booking_lead_days": [10, np.nan, 20],
+        "is_cheapest": [1, np.nan, 0],
+        "price_per_tax": [1.0, np.nan, 2.0],
+        "random_int": pd.Series([1, pd.NA, 2], dtype="Int64"),
+    })
+    out = utils.unify_nan_strategy(df.copy())
+
+    # -1 sentinel should be used for MINUS1 columns
+    assert out["booking_lead_days"].tolist() == [10, -1, 20]
+    assert out["booking_lead_days_missing"].tolist() == [0, 1, 0]
+
+    # NaNs should be preserved for other columns
+    assert out["is_cheapest"].isna().tolist() == [False, True, False]
+    assert out["price_per_tax"].isna().tolist() == [False, True, False]
+
+    # Missing indicators should exist
+    for col in ["is_cheapest", "price_per_tax", "random_int"]:
+        assert f"{col}_missing" in out.columns
+
+
+def test_clean_features_drops_low_var_and_corr():
+    X = pd.DataFrame({
+        "single_val": [1, 1, 1, 1],
+        "varied1": [1, 2, 3, 4],
+        "varied2": [2, 4, 6, 8],
+        "varied3": [1, 2, 1, 2],
+    })
+    X_test = X.copy()
+
+    X_clean, X_test_clean, dropped = utils.clean_features(
+        X, X_test, verbose=False
+    )
+
+    assert "single_val" not in X_clean.columns
+    assert "single_val" not in X_test_clean.columns
+    assert dropped["low_var"] == ["single_val"]
+
+    assert "varied2" not in X_clean.columns
+    assert "varied2" not in X_test_clean.columns
+    assert "varied2" in dropped["high_corr"]
+    assert "varied3" in X_clean.columns
+
+
+def test_calculate_hit_rate_at_3():
+    group_a = pd.DataFrame({
+        "ranker_id": ["A"] * 11,
+        "selected": [0, 1] + [0] * 9,
+        "predicted_rank": list(range(1, 12)),
+    })
+    group_b = pd.DataFrame({
+        "ranker_id": ["B"] * 11,
+        "selected": [0] * 4 + [1] + [0] * 6,
+        "predicted_rank": list(range(1, 12)),
+    })
+    df = pd.concat([group_a, group_b], ignore_index=True)
+
+    hr = utils.calculate_hit_rate_at_3(df)
+    assert hr == 0.5
