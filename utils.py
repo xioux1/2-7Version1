@@ -455,3 +455,18 @@ def check_rank_permutation(group):
         return False
     return True
 
+
+def readme() -> str:
+    """Return a short description of this project's purpose.
+
+    This helper can be imported by notebooks or scripts to quickly
+    display basic information about the utilities and pipeline
+    contained in this repository.
+    """
+
+    return (
+        "Utilities and pipeline for the AeroClub RecSys 2025 dataset. "
+        "The code includes feature engineering helpers and a LightGBM "
+        "training pipeline (see :mod:`pipeline`)."
+    )
+
