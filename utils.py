@@ -2,6 +2,18 @@ import pandas as pd
 import numpy as np
 import gc
 import re
+import os
+
+MEM_LOG_ENABLED = os.getenv("LOG_MEM", "0") == "1"
+
+def log_mem_usage(df: pd.DataFrame, label: str, enabled: bool = MEM_LOG_ENABLED) -> None:
+    """Print memory usage stats for ``df`` if logging is enabled."""
+    if not enabled:
+        return
+    mem = df.memory_usage(deep=True)
+    total = mem.sum() / 1024 ** 2
+    print(f"[mem] {label}: {total:.2f} MB")
+    print(mem)
 
 IMPUTE_RULES = {
     "ZERO": [
