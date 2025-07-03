@@ -164,23 +164,35 @@ def prepare_matrices(train_df_processed, test_df_processed):
     return X, y, X_test, train_ranker_ids
 
 def encode_categoricals(X, X_test):
+    """Encode object or categorical columns using shared category sets."""
+
     categorical_features_for_encoding = []
     for col in X.columns:
-        if X[col].dtype.name in ('object', 'category'):
+        if X[col].dtype.name in ("object", "category"):
             categorical_features_for_encoding.append(col)
-            le = LabelEncoder()
+
             if col in X_test.columns:
-                combined = pd.concat([X[col].astype(str), X_test[col].astype(str)], axis=0).unique()
-                le.fit(combined)
-                X[col] = le.transform(X[col].astype(str))
-                X_test[col] = le.transform(X_test[col].astype(str))
+                train_cats = pd.Index(X[col].dropna().unique())
+                test_cats = pd.Index(X_test[col].dropna().unique())
+                categories = train_cats.union(test_cats, sort=False)
             else:
-                X[col] = le.fit_transform(X[col].astype(str))
+                categories = pd.Index(X[col].dropna().unique())
+
+            X[col] = pd.Categorical(X[col], categories=categories).codes.astype("int32")
+            if col in X_test.columns:
+                X_test[col] = (
+                    pd.Categorical(X_test[col], categories=categories)
+                    .codes.astype("int32")
+                )
+
     for col in X.columns:
         if not pd.api.types.is_numeric_dtype(X[col]):
-            X[col] = pd.to_numeric(X[col], errors='coerce').fillna(-1)
+            X[col] = pd.to_numeric(X[col], errors="coerce").fillna(-1)
             if col in X_test.columns:
-                X_test[col] = pd.to_numeric(X_test[col], errors='coerce').fillna(-1)
+                X_test[col] = (
+                    pd.to_numeric(X_test[col], errors="coerce").fillna(-1)
+                )
+
     return X, X_test, categorical_features_for_encoding
 
 def train_model(X, y, X_test, ranker_ids, cat_features):
