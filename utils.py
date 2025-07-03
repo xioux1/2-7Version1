@@ -44,9 +44,12 @@ def unify_nan_strategy(df: pd.DataFrame) -> pd.DataFrame:
     """Standardise NaN handling and create missing-value indicators.
 
     Numeric columns keep their NaNs so LightGBM can leverage them
-    directly.  Missing flags are added for every column that contains
-    NaNs.  Only the columns listed under ``MINUS1`` keep the ``-1``
-    sentinel value, as it carries semantic meaning for those features.
+    directly except for those listed under ``ZERO`` or ``MINUS1``.
+    ``ZERO`` columns have NaNs replaced with ``0`` (while recording
+    the missingness) so they can remain integer typed. ``MINUS1``
+    columns keep the ``-1`` sentinel value, as it carries semantic
+    meaning for those features.  Missing flags are added for every
+    column that contains NaNs.
     """
 
     # Replace any leftover infinities from feature engineering
@@ -57,14 +60,17 @@ def unify_nan_strategy(df: pd.DataFrame) -> pd.DataFrame:
         if col in df.columns:
             df = fill_with_flag(df, col, -1)
 
-    # For all other columns just record the missingness without filling
+    # Columns where NaNs should become 0 so they remain integers
     for col in IMPUTE_RULES["ZERO"]:
         if col in df.columns:
-            df = add_missing_flags(df, [col])
+            df = fill_with_flag(df, col, 0)
+            # keep these features as small integers to save memory
+            df[col] = df[col].astype(np.int8)
 
-    # Ensure nullable integers become floats for NaN support
+    # Ensure nullable integers with remaining NaNs become floats for LGBM
     for c in df.select_dtypes("Int64").columns:
-        df[c] = df[c].astype("float32")
+        if df[c].isna().any():
+            df[c] = df[c].astype("float32")
 
     for c in df.columns[df.isna().any()]:
         flag = f"{c}_missing"

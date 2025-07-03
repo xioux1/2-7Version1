@@ -17,9 +17,13 @@ def test_unify_nan_strategy_flags_and_nan_preservation():
     assert out["booking_lead_days"].tolist() == [10, -1, 20]
     assert out["booking_lead_days_missing"].tolist() == [0, 1, 0]
 
-    # NaNs should be preserved for other columns
-    assert out["is_cheapest"].isna().tolist() == [False, True, False]
+    # ZERO columns should be filled with 0 and keep int8 dtype
+    assert out["is_cheapest"].tolist() == [1, 0, 0]
+    assert out["is_cheapest"].dtype == np.int8
+    # NaNs should be preserved for KEEP_NA columns
     assert out["price_per_tax"].isna().tolist() == [False, True, False]
+    # Nullable integers with NaNs should be cast to float32
+    assert out["random_int"].dtype == np.float32
 
     # Missing indicators should exist
     for col in ["is_cheapest", "price_per_tax", "random_int"]:
