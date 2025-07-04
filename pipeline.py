@@ -156,7 +156,7 @@ def preprocess_dataframe(df, is_train=True):
     log_mem_usage(df, f"{'train' if is_train else 'test'} final")
     return df
 
-def prepare_matrices(train_df_processed, test_df_processed):
+def prepare_matrices(train_df_processed, test_df_processed, drop_cols=None):
     TOP_N = 10
     airport_col = 'legs0_segments0_departureFrom_airport_iata'
     freq = train_df_processed[airport_col].value_counts()
@@ -184,22 +184,30 @@ def prepare_matrices(train_df_processed, test_df_processed):
         'legs1_departureAt', 'legs1_arrivalAt'
     ]
     id_cols_and_target = ['Id', 'ranker_id', 'selected', 'profileId', 'companyID', 'searchRoute']
-    DROP_COLS = [
-        'free_cancel', 'free_exchange',
-        'ff_SU', 'ff_S7', 'ff_U6', 'ff_TK',
-        'has_fees', 'has_baggage',
-        'tax_percentage',
-        'n_segments_leg0', 'n_segments_leg1',
-        'group_size_log', 'has_access_tp',
-        'is_round_trip',
-    ] + [c for c in NON_INFORMATIVE_COLS if c not in COL_BLACKLIST]
+    if drop_cols is None:
+        drop_cols = [
+            'free_cancel',
+            'free_exchange',
+            'ff_SU',
+            'ff_S7',
+            'ff_U6',
+            'ff_TK',
+            'has_fees',
+            'has_baggage',
+            'tax_percentage',
+            'n_segments_leg0',
+            'n_segments_leg1',
+            'group_size_log',
+            'has_access_tp',
+            'is_round_trip',
+        ] + [c for c in NON_INFORMATIVE_COLS if c not in COL_BLACKLIST]
     train_df_processed.drop(
-        columns=[c for c in DROP_COLS if c in train_df_processed.columns],
+        columns=[c for c in drop_cols if c in train_df_processed.columns],
         inplace=True,
         errors="ignore",
     )
     test_df_processed.drop(
-        columns=[c for c in DROP_COLS if c in test_df_processed.columns],
+        columns=[c for c in drop_cols if c in test_df_processed.columns],
         inplace=True,
         errors="ignore",
     )
