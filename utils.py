@@ -332,26 +332,25 @@ def create_features(df):
         feat = {}
     legs0 = df.get("legs0_duration")
     legs1 = df.get("legs1_duration")
+    seg_counts = {}
     for leg in (0, 1):
         pat = rf'^legs{leg}_segments\d+_departureFrom_airport_iata$'
         seg_cols = [c for c in df.columns if re.match(pat, c)]
-        feat[f"n_segments_leg{leg}"] = (
+        seg_counts[leg] = (
             df[seg_cols].notna().sum(axis=1).astype("int8") if seg_cols else 0
         )
-    feat["total_segments"] = feat["n_segments_leg0"] + feat["n_segments_leg1"]
+    feat["total_segments"] = seg_counts[0] + seg_counts[1]
     feat["is_one_way"] = (
         df["legs1_duration"].isna() |
         df["legs1_segments0_departureFrom_airport_iata"].isna()
     ).astype("int8")
     feat["has_return"] = 1 - feat["is_one_way"]
     grp = df.groupby("ranker_id")
-    feat["price_rank"]        = grp["totalPrice"].rank()
     feat["price_pct_rank"]    = grp["totalPrice"].rank(pct=True)
     feat["duration_rank"]     = grp["total_duration"].rank()
     feat["duration_pct_rank"] = grp["total_duration"].rank(pct=True)
     feat["is_cheapest"]       = (grp["totalPrice"].transform("min") == df["totalPrice"]).astype("int8")
     feat["is_most_expensive"] = (grp["totalPrice"].transform("max") == df["totalPrice"]).astype("int8")
-    feat["price_from_median"] = grp["totalPrice"].transform(lambda x: (x - x.median()) / (x.std() + 1))
     ff = df["frequentFlyer"].fillna("").astype(str)
     feat["n_ff_programs"] = ff.str.count("/") + (ff != "")
     carrier_cols = ["legs0_segments0_marketingCarrier_code", "legs1_segments0_marketingCarrier_code"]
@@ -359,23 +358,22 @@ def create_features(df):
     for col in carrier_cols:
         if col in df.columns:
             present_airlines.update(df[col].dropna().unique())
+    ff_flags = {}
     for al in ["SU", "S7", "U6", "TK"]:
         if al in present_airlines:
-            feat[f"ff_{al}"] = ff.str.contains(fr"\b{al}\b").astype("int8")
+            ff_flags[al] = ff.str.contains(fr"\b{al}\b").astype("int8")
     feat["ff_matches_carrier"] = 0
-    for al in ["SU", "S7", "U6", "TK"]:
-        if f"ff_{al}" in feat and "legs0_segments0_marketingCarrier_code" in df.columns:
+    if "legs0_segments0_marketingCarrier_code" in df.columns:
+        for al, flag in ff_flags.items():
             feat["ff_matches_carrier"] |= (
-                (feat[f"ff_{al}"] == 1) &
-                (df["legs0_segments0_marketingCarrier_code"] == al)
+                (flag == 1)
+                & (df["legs0_segments0_marketingCarrier_code"] == al)
             ).astype("int8")
     feat["baggage_total"] = (
         df["legs0_segments0_baggageAllowance_quantity"].fillna(0)
         + df["legs1_segments0_baggageAllowance_quantity"].fillna(0)
     )
-    feat["has_baggage"] = (feat["baggage_total"] > 0).astype("int8")
     feat["total_fees"]  = df["miniRules0_monetaryAmount"].fillna(0) + df["miniRules1_monetaryAmount"].fillna(0)
-    feat["has_fees"]    = (feat["total_fees"] > 0).astype("int8")
     feat["fee_rate"]    = feat["total_fees"] / (df["totalPrice"] + 1)
     for col in ("legs0_departureAt", "legs0_arrivalAt", "legs1_departureAt", "legs1_arrivalAt"):
         if col in df.columns:
@@ -384,14 +382,15 @@ def create_features(df):
             feat[f"{col}_weekday"]   = dt.dt.weekday.astype("float16")
             h = dt.dt.hour
             feat[f"{col}_business_time"] = (((6 <= h) & (h <= 9)) | ((17 <= h) & (h <= 20))).astype("int8")
-    feat["is_direct_leg0"] = (feat["n_segments_leg0"] == 1).astype("int8")
-    feat["is_direct_leg1"] = np.where(feat["is_one_way"] == 1, 0,
-                                      (feat["n_segments_leg1"] == 1).astype("int8"))
+    feat["is_direct_leg0"] = (seg_counts[0] == 1).astype("int8")
+    feat["is_direct_leg1"] = np.where(
+        feat["is_one_way"] == 1,
+        0,
+        (seg_counts[1] == 1).astype("int8"),
+    )
     feat["both_direct"]    = (feat["is_direct_leg0"] & feat["is_direct_leg1"]).astype("int8")
     feat["is_vip_freq"]  = ((df["isVip"] == 1) | (feat["n_ff_programs"] > 0)).astype("int8")
-    feat["has_access_tp"] = (df["pricingInfo_isAccessTP"] == 1).astype("int8")
     feat["group_size"]    = df.groupby("ranker_id")["Id"].transform("count")
-    feat["group_size_log"] = np.log1p(feat["group_size"])
     if "legs0_segments0_marketingCarrier_code" in df.columns:
         feat["is_major_carrier"] = df["legs0_segments0_marketingCarrier_code"].isin(["SU","S7","U6"]).astype("int8")
     else:
@@ -441,9 +440,7 @@ def create_remaining_features(df, is_train=True):
     else:
         df['booking_lead_days'] = -1.0
     if 'searchRoute' in df.columns:
-        df['is_round_trip'] = df['searchRoute'].astype(str).str.contains('/').astype(np.int8)
-    else:
-        df['is_round_trip'] = -1
+        _ = df['searchRoute'].astype(str).str.contains('/')
     if 'legs1_departureAt' in df.columns and pd.api.types.is_datetime64_any_dtype(df['legs1_departureAt']):
         df['num_legs'] = 1 + df['legs1_departureAt'].notna().astype(np.int8)
     elif 'legs1_departureAt' in df.columns:
@@ -463,12 +460,11 @@ def create_remaining_features(df, is_train=True):
             df[dur_col] = pd.to_numeric(df[dur_col].astype(str), errors='coerce')
     df['total_flight_duration'] = (df['legs0_duration'] + df['legs1_duration']).astype(np.float32)
     if 'totalPrice' in df.columns and 'taxes' in df.columns:
-        df['price_per_duration'] = (df['totalPrice'] / (df['total_flight_duration'] + 1e-6)).fillna(0).astype(np.float32)
-        df['tax_percentage'] = (df['taxes'] / (df['totalPrice'] + 1e-6)).fillna(0) * 100
-        df['tax_percentage'] = df['tax_percentage'].astype(np.float32)
+        df['price_per_duration'] = (
+            df['totalPrice'] / (df['total_flight_duration'] + 1e-6)
+        ).fillna(0).astype(np.float32)
     else:
         df['price_per_duration'] = 0.0
-        df['tax_percentage'] = 0.0
     if 'pricingInfo_isAccessTP' in df.columns:
         df['is_compliant'] = df['pricingInfo_isAccessTP'].fillna(0).astype(np.int8)
     else:
@@ -489,28 +485,10 @@ def create_remaining_features(df, is_train=True):
             df['baggage_both_legs_included'] = df['baggage_leg0_included'].astype(np.int8)
         else:
             df['baggage_both_legs_included'] = -1
-    df['free_cancel'] = -1
-    df['free_exchange'] = -1
-    if 'miniRules0_monetaryAmount' in df.columns and 'miniRules0_percentage' in df.columns:
-        df['free_cancel'] = ((pd.to_numeric(df['miniRules0_monetaryAmount'], errors='coerce').fillna(1) == 0) &
-                             (pd.to_numeric(df['miniRules0_percentage'], errors='coerce').fillna(1) == 0)).astype(np.int8)
-    if 'miniRules1_monetaryAmount' in df.columns and 'miniRules1_percentage' in df.columns:
-        df['free_exchange'] = ((pd.to_numeric(df['miniRules1_monetaryAmount'], errors='coerce').fillna(1) == 0) &
-                              (pd.to_numeric(df['miniRules1_percentage'], errors='coerce').fillna(1) == 0)).astype(np.int8)
     group_key = 'ranker_id'
     if group_key not in df.columns:
         return df
     cols_for_group_features = []
-    if 'totalPrice' in df.columns and pd.api.types.is_numeric_dtype(df['totalPrice']):
-        cols_for_group_features.append('totalPrice')
-    print(f"Processing group-wise features for {'train' if is_train else 'test'} on columns: {cols_for_group_features}")
-    for col in cols_for_group_features:
-        if col in df.columns and pd.api.types.is_numeric_dtype(df[col]):
-            print(f"  Calculating rank for {col}...")
-            df[f'{col}_rank_in_group'] = df.groupby(group_key)[col].rank(method='dense', ascending=True).astype(np.float32)
-            gc.collect()
-        elif col in df.columns:
-            print(f"Warning: Column '{col}' for group feature is not numeric (dtype: {df[col].dtype}). Skipping.")
     user_company_cats_loaded = [c for c in ['sex', 'nationality', 'isVip'] if c in df.columns]
     for col in user_company_cats_loaded:
         if df[col].dtype == 'bool':
