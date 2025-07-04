@@ -195,8 +195,28 @@ def encode_categoricals(X, X_test):
 
     return X, X_test, categorical_features_for_encoding
 
-def train_model(X, y, X_test, ranker_ids, cat_features):
-    params = {
+def train_model(X, y, X_test, ranker_ids, cat_features, params=None, n_folds=5):
+    """Train a LightGBM ranker.
+
+    Parameters
+    ----------
+    X : pd.DataFrame
+        Training features.
+    y : pd.Series
+        Target labels.
+    X_test : pd.DataFrame
+        Test features.
+    ranker_ids : pd.Series
+        Group labels used for ranking.
+    cat_features : list
+        List of categorical feature names.
+    params : dict, optional
+        LightGBM parameters. If ``None`` default parameters are used.
+    n_folds : int, optional
+        Number of cross-validation folds.
+    """
+    if params is None:
+        params = {
         'objective': 'lambdarank',
         'metric': 'None',
         'boosting_type': 'gbdt',
@@ -216,9 +236,8 @@ def train_model(X, y, X_test, ranker_ids, cat_features):
         'importance_type': 'gain',
         'verbose': -1,
         'seed': 42
-    }
-    NFOLDS = 5
-    group_kfold = GroupKFold(n_splits=NFOLDS)
+        }
+    group_kfold = GroupKFold(n_splits=n_folds)
     oof_preds_scores = np.zeros(len(X))
     test_preds_scores = np.zeros(len(X_test))
     fold_hit_rates = []
@@ -226,7 +245,7 @@ def train_model(X, y, X_test, ranker_ids, cat_features):
 
     cat_indices = [X.columns.get_loc(c) for c in cat_features if c in X.columns]
     for fold_, (train_idx, val_idx) in enumerate(group_kfold.split(X, y, groups=ranker_ids)):
-        print(f"====== Fold {fold_+1}/{NFOLDS} ======")
+        print(f"====== Fold {fold_+1}/{n_folds} ======")
         if fold_ > 0:
             gc.collect()
         X_train_fold, y_train_fold = X.iloc[train_idx], y.iloc[train_idx]
@@ -246,7 +265,7 @@ def train_model(X, y, X_test, ranker_ids, cat_features):
         )
         val_scores = ranker.predict(X_val_fold)
         oof_preds_scores[val_idx] = val_scores
-        test_preds_scores += ranker.predict(X_test) / NFOLDS
+        test_preds_scores += ranker.predict(X_test) / n_folds
         val_df = pd.DataFrame({'ranker_id': ranker_ids.iloc[val_idx], 'selected': y_val_fold, 'score': val_scores})
         val_df['predicted_rank'] = val_df.groupby('ranker_id')['score'].rank(method='first', ascending=False).astype(int)
         fold_hr3 = calculate_hit_rate_at_3(val_df)
@@ -262,7 +281,7 @@ def train_model(X, y, X_test, ranker_ids, cat_features):
     if fold_hit_rates:
         print(f"Mean Fold HitRate@3: {np.mean(fold_hit_rates):.4f}")
 
-    fold_cols = [f'fold_{i+1}' for i in range(NFOLDS) if f'fold_{i+1}' in feature_importances]
+    fold_cols = [f'fold_{i+1}' for i in range(n_folds) if f'fold_{i+1}' in feature_importances]
     if fold_cols:
         feature_importances['average'] = feature_importances[fold_cols].mean(axis=1)
     else:
