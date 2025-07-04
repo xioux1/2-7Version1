@@ -511,26 +511,8 @@ def create_remaining_features(df, is_train=True):
     df = reduce_mem_usage(df, verbose=False)
     return df
 
-def dur_stats(df):
-    for col in ['legs0_duration', 'legs1_duration']:
-        print(col,
-              "\u2192", df[col].dtype,
-              "| NaN:", df[col].isna().mean(),
-              "| 0.0:", (df[col] == 0).mean(),
-              "| -1:",  (df[col] == -1).mean(),
-              "| min:", df[col].min(),
-              "| max:", df[col].max())
-
-def check_rank_permutation(group):
-    N = len(group)
-    sorted_ranks = sorted(list(group['selected']))
-    expected_ranks = list(range(1, N + 1))
-    if sorted_ranks != expected_ranks:
-        print(f"Invalid rank permutation for ranker_id: {group['ranker_id'].iloc[0]}")
-        print(f"Expected: {expected_ranks}, Got: {sorted_ranks}")
-        return False
-    return True
-
+# Debugging helpers ``dur_stats`` and ``check_rank_permutation`` were moved to
+# :mod:`debug_utils` to keep this module focused on production utilities.
 
 def readme() -> str:
     """Return a short description of this project's purpose.
