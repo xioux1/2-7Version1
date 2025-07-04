@@ -16,6 +16,7 @@ from utils import (
     calculate_hit_rate_at_3,
     lgb_hit_rate_at_3,
     smart_fill_numeric,
+    frequency_encode,
 )
 
 # --- columnas que quiero ignorar en TODO el pipeline ---
@@ -163,27 +164,53 @@ def prepare_matrices(train_df_processed, test_df_processed):
         X_test[c] = X_test[c].fillna("missing")
     return X, y, X_test, train_ranker_ids
 
-def encode_categoricals(X, X_test):
-    """Encode object or categorical columns using shared category sets."""
+def encode_categoricals(
+    X,
+    X_test,
+    *,
+    high_card_cols=None,
+    high_card_thresh=50,
+):
+    """Encode categorical columns using label or frequency encoding."""
+
+    if high_card_cols is None:
+        high_card_cols = [
+            c
+            for c in X.columns
+            if c.endswith("_iata") or "Carrier_code" in c
+        ]
 
     categorical_features_for_encoding = []
     for col in X.columns:
         if X[col].dtype.name in ("object", "category"):
-            categorical_features_for_encoding.append(col)
-
-            if col in X_test.columns:
-                train_cats = pd.Index(X[col].dropna().unique())
-                test_cats = pd.Index(X_test[col].dropna().unique())
-                categories = train_cats.union(test_cats, sort=False)
+            is_high_card = (
+                col in high_card_cols
+                or X[col].nunique(dropna=True) > high_card_thresh
+            )
+            if is_high_card:
+                X[col], xt = frequency_encode(
+                    X[col], X_test[col] if col in X_test.columns else None
+                )
+                if xt is not None:
+                    X_test[col] = xt
             else:
-                categories = pd.Index(X[col].dropna().unique())
+                categorical_features_for_encoding.append(col)
+                if col in X_test.columns:
+                    train_cats = pd.Index(X[col].dropna().unique())
+                    test_cats = pd.Index(X_test[col].dropna().unique())
+                    categories = train_cats.union(test_cats, sort=False)
+                else:
+                    categories = pd.Index(X[col].dropna().unique())
 
-            X[col] = pd.Categorical(X[col], categories=categories).codes.astype("int32")
-            if col in X_test.columns:
-                X_test[col] = (
-                    pd.Categorical(X_test[col], categories=categories)
+                X[col] = (
+                    pd.Categorical(X[col], categories=categories)
                     .codes.astype("int32")
                 )
+                if col in X_test.columns:
+                    X_test[col] = (
+                        pd.Categorical(X_test[col], categories=categories)
+                        .codes.astype("int32")
+                    )
 
     for col in X.columns:
         if not pd.api.types.is_numeric_dtype(X[col]):
