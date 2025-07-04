@@ -160,3 +160,23 @@ def test_create_features_price_and_duration_diffs():
     assert out['duration_diff_from_min'].tolist() == expected_dur_diff
     assert out['price_rank'].tolist() == expected_price_rank
     assert out['totalPrice_rank_in_group'].tolist() == expected_rank_norm
+
+
+def test_create_remaining_features_adds_month_and_holiday():
+    df = pd.DataFrame({
+        'ranker_id': [1],
+        'requestDate': [pd.to_datetime('2024-01-02')],
+        'legs0_departureAt': [pd.to_datetime('2024-01-05')],
+        'legs0_arrivalAt': [pd.to_datetime('2024-01-05 03:00')],
+        'legs0_duration': [60],
+        'legs1_duration': [60],
+        'totalPrice': [100.0],
+        'taxes': [10.0],
+    })
+
+    out = utils.create_remaining_features(df.copy(), is_train=True)
+
+    for col in ['requestDate', 'legs0_departureAt', 'legs0_arrivalAt']:
+        assert f'{col}_month' in out.columns
+        assert f'{col}_quarter' in out.columns
+        assert f'{col}_is_holiday' in out.columns

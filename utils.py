@@ -3,6 +3,12 @@ import numpy as np
 import gc
 import re
 
+try:
+    from holidays import country_holidays
+    RU_HOLIDAYS = set(country_holidays("RU"))
+except Exception:  # pragma: no cover - optional dependency may be missing
+    RU_HOLIDAYS = set()
+
 
 def _normalise_utc_offset(ts: str) -> str:
     """Return ``ts`` with ``UTC±HH`` offsets expanded to ``±HH:MM``.
@@ -292,6 +298,15 @@ def lgb_hit_rate_at_3(labels, preds, weight=None, group=None):
 # -------------------------------------------------------------------
 # Feature engineering helpers
 
+def _holiday_flag(series: pd.Series) -> pd.Series:
+    """Return ``1`` if the date falls on a Russian holiday, else ``0``.
+
+    Falls back to all zeros when the ``holidays`` package is unavailable.
+    """
+    if not RU_HOLIDAYS:
+        return pd.Series(0, index=series.index, dtype="int8")
+    return series.dt.date.isin(RU_HOLIDAYS).astype("int8")
+
 def create_features(df):
     def hms_to_minutes(s: pd.Series) -> np.ndarray:
         out = np.full(len(s), np.nan, dtype="float32")
@@ -439,11 +454,14 @@ def create_initial_datetime_features(df):
     return df
 
 def create_remaining_features(df, is_train=True):
-    potential_dt_cols_for_components = ['legs0_departureAt', 'legs0_arrivalAt', 'legs1_departureAt', 'legs1_arrivalAt']
+    potential_dt_cols_for_components = ['requestDate', 'legs0_departureAt', 'legs0_arrivalAt', 'legs1_departureAt', 'legs1_arrivalAt']
     for col in potential_dt_cols_for_components:
         if col in df.columns and pd.api.types.is_datetime64_any_dtype(df[col]):
             df[col + '_hour'] = df[col].dt.hour.astype(np.int8, errors='ignore')
             df[col + '_dow'] = df[col].dt.dayofweek.astype(np.int8, errors='ignore')
+            df[col + '_month'] = df[col].dt.month.astype(np.int8, errors='ignore')
+            df[col + '_quarter'] = df[col].dt.quarter.astype(np.int8, errors='ignore')
+            df[col + '_is_holiday'] = _holiday_flag(df[col])
     if (
         'legs0_departureAt' in df.columns
         and 'requestDate' in df.columns
