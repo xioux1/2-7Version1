@@ -129,7 +129,6 @@ def prepare_matrices(train_df_processed, test_df_processed):
         'price_rank', 'totalPrice_rank_in_group', 'price_from_median',
         'tax_percentage',
         'n_segments_leg0', 'n_segments_leg1',
-        'dep_is_hub',
         'group_size_log', 'has_access_tp',
         'is_round_trip',
     ]
