@@ -160,6 +160,19 @@ def prepare_matrices(train_df_processed, test_df_processed):
     for df in (train_df_processed, test_df_processed):
         df['dep_is_hub'] = df[airport_col].isin(top_hubs).astype('int8')
 
+    # Check correlation between taxes and price-based features
+    corr_thresh = 0.95
+    if {
+        'taxes',
+        'price_from_median'
+    }.issubset(train_df_processed.columns):
+        corr_val = train_df_processed['taxes'].corr(
+            train_df_processed['price_from_median']
+        )
+        if pd.notna(corr_val) and abs(corr_val) > corr_thresh:
+            train_df_processed.drop(columns=['taxes'], inplace=True)
+            test_df_processed.drop(columns=['taxes'], inplace=True, errors='ignore')
+
     raw_datetime_col_names = [
         'requestDate', 'legs0_departureAt', 'legs0_arrivalAt',
         'legs1_departureAt', 'legs1_arrivalAt'
