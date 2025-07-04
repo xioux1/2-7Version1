@@ -310,6 +310,7 @@ def create_features(df):
     feat["price_rank"]        = grp["totalPrice"].rank()
     feat["price_pct_rank"]    = grp["totalPrice"].rank(pct=True)
     feat["duration_rank"]     = grp["total_duration"].rank()
+    feat["duration_pct_rank"] = grp["total_duration"].rank(pct=True)
     feat["is_cheapest"]       = (grp["totalPrice"].transform("min") == df["totalPrice"]).astype("int8")
     feat["is_most_expensive"] = (grp["totalPrice"].transform("max") == df["totalPrice"]).astype("int8")
     feat["price_from_median"] = grp["totalPrice"].transform(lambda x: (x - x.median()) / (x.std() + 1))
