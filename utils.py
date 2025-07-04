@@ -331,6 +331,7 @@ def create_features(df):
     for c in present:
         df[c] = hms_to_minutes(df[c]).astype('float32')
     df = add_missing_flags(df, present)
+    gc.collect()
 
     legs0 = df['legs0_duration'] if 'legs0_duration' in df.columns else np.nan
     legs1 = df['legs1_duration'] if 'legs1_duration' in df.columns else np.nan
@@ -427,14 +428,17 @@ def create_features(df):
     feat["avg_cabin_class"] = df[["legs0_segments0_cabinClass","legs1_segments0_cabinClass"]].mean(axis=1)
     df = pd.concat([df, pd.DataFrame(feat, index=df.index)], axis=1)
     df = df.loc[:, ~df.columns.duplicated(keep="first")]
+    del feat, seg_counts, present_airlines, ff_flags, ff, grp, grp_sizes
+    gc.collect()
     for col in df.select_dtypes(include="object").columns:
         if pd.api.types.is_categorical_dtype(df[col]):
             if "missing" not in df[col].cat.categories:
                 df[col] = df[col].cat.add_categories(["missing"])
-            df[col] = df[col].fillna("missing")
+                df[col] = df[col].fillna("missing")
         else:
             df[col] = df[col].astype("category")
             df[col] = df[col].cat.add_categories(["missing"]).fillna("missing")
+    gc.collect()
     return df
 
 def create_initial_datetime_features(df):
@@ -533,6 +537,7 @@ def create_remaining_features(df, is_train=True):
     for col in binary_cols_loaded:
         df[col] = df[col].fillna(0).astype(np.int8)
     df = reduce_mem_usage(df, verbose=False)
+    gc.collect()
     return df
 
 # Debugging helpers ``dur_stats`` and ``check_rank_permutation`` were moved to
