@@ -52,6 +52,33 @@ initial_core_columns += [c for c in extra_cols if c not in initial_core_columns]
 initial_core_columns = [c for c in initial_core_columns if c not in COL_BLACKLIST]
 initial_core_columns_test = [c for c in initial_core_columns if c != 'selected']
 
+# Columns that consistently have zero informational value
+NON_INFORMATIVE_COLS = [
+    'legs0_segments0_arrivalTo_airport_iata_missing',
+    'legs0_segments0_baggageAllowance_quantity_missing',
+    'legs1_departureAt_month',
+    'legs1_segments0_baggageAllowance_quantity_missing',
+    'sex',
+    'legs1_departureAt_quarter',
+    'total_segments',
+    'legs0_departureAt_quarter',
+    'legs0_departureAt_month',
+    'requestDate_quarter',
+    'requestDate_month',
+    'requestDate_dow',
+    'requestDate_hour',
+    'is_popular_route',
+    'group_size',
+    'is_vip_freq',
+    'is_direct_leg0',
+    'isVip',
+    'legs1_departureAt_weekday',
+    'frequentFlyer',
+    'legs0_departureAt_weekday',
+    'n_ff_programs',
+    'nationality',
+]
+
 
 def load_data(sample_frac=0.5, random_seed=42):
     print("Loading a subset of columns for train_df...")
@@ -115,6 +142,8 @@ def preprocess_dataframe(df, is_train=True):
     gc.collect()
     df = unify_nan_strategy(df)
     gc.collect()
+    df.drop(columns=[c for c in NON_INFORMATIVE_COLS if c in df.columns],
+            inplace=True, errors="ignore")
     log_mem_usage(df, f"{'train' if is_train else 'test'} after unify")
     df = reduce_mem_usage(df)
     gc.collect()
@@ -144,7 +173,7 @@ def prepare_matrices(train_df_processed, test_df_processed):
         'n_segments_leg0', 'n_segments_leg1',
         'group_size_log', 'has_access_tp',
         'is_round_trip',
-    ]
+    ] + [c for c in NON_INFORMATIVE_COLS if c not in COL_BLACKLIST]
     train_df_processed.drop(
         columns=[c for c in DROP_COLS if c in train_df_processed.columns],
         inplace=True,
