@@ -62,3 +62,24 @@ def test_encode_categoricals_encodes_union_int32():
     assert len(set(combined.tolist())) == 4
     # ensure new category from test isn't mapped to -1
     assert -1 not in X_test_enc['cat'].values
+
+
+def test_encode_categoricals_frequency_encoding():
+    X = pd.DataFrame({'legs0_segments0_departureFrom_airport_iata': ['SFO', 'LAX', 'SFO', 'JFK']})
+    X_test = pd.DataFrame({'legs0_segments0_departureFrom_airport_iata': ['LAX', 'ORD']})
+
+    X_enc, X_test_enc, cats = pipeline.encode_categoricals(
+        X.copy(),
+        X_test.copy(),
+        high_card_cols=['legs0_segments0_departureFrom_airport_iata'],
+    )
+
+    assert 'legs0_segments0_departureFrom_airport_iata' not in cats
+    assert np.issubdtype(X_enc['legs0_segments0_departureFrom_airport_iata'].dtype, np.floating)
+
+    freq = X['legs0_segments0_departureFrom_airport_iata'].value_counts()
+    expected_train = np.log1p(X['legs0_segments0_departureFrom_airport_iata'].map(freq).fillna(1)).astype(np.float32)
+    expected_test = np.log1p(X_test['legs0_segments0_departureFrom_airport_iata'].map(freq).fillna(1)).astype(np.float32)
+
+    assert np.allclose(X_enc['legs0_segments0_departureFrom_airport_iata'].values, expected_train.values)
+    assert np.allclose(X_test_enc['legs0_segments0_departureFrom_airport_iata'].values, expected_test.values)

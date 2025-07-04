@@ -191,6 +191,44 @@ def log_mem_usage(df: pd.DataFrame, label: str = "") -> None:
     print(usage.to_string())
     print(f"{tag}Total: {total_mb:.2f} MB")
 
+def frequency_encode(train_series: pd.Series,
+                     test_series: pd.Series | None = None,
+                     *,
+                     log: bool = True) -> tuple[pd.Series, pd.Series | None]:
+    """Encode categories by their frequency derived from ``train_series``.
+
+    Parameters
+    ----------
+    train_series : pd.Series
+        Training column containing categorical values.
+    test_series : pd.Series or None, optional
+        Corresponding column from the test set. If provided, the same
+        frequency mapping is applied.
+    log : bool, default True
+        Whether to apply ``np.log1p`` to the counts.
+
+    Returns
+    -------
+    tuple
+        Encoded training series and, when ``test_series`` is given, the
+        encoded test series as well. Encodings are returned as
+        ``float32``.
+    """
+
+    freq = train_series.value_counts()
+    train_enc = train_series.map(freq).fillna(1)
+    if test_series is not None:
+        test_enc = test_series.map(freq).fillna(1)
+    if log:
+        train_enc = np.log1p(train_enc)
+        if test_series is not None:
+            test_enc = np.log1p(test_enc)
+    train_enc = train_enc.astype("float32")
+    if test_series is not None:
+        test_enc = test_enc.astype("float32")
+        return train_enc, test_enc
+    return train_enc, None
+
 def calculate_hit_rate_at_3(df_preds_with_true_and_rank):
     """Calculates HitRate@3."""
     hits = 0
