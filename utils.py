@@ -3,6 +3,25 @@ import numpy as np
 import gc
 import re
 
+
+def _normalise_utc_offset(ts: str) -> str:
+    """Return ``ts`` with ``UTC±HH`` offsets expanded to ``±HH:MM``.
+
+    ``pd.to_datetime`` misinterprets offsets like ``UTC+5`` as ``UTC-05``.
+    This helper rewrites them to a standard ``+05:00`` style so pandas
+    parses them correctly.
+    """
+    if not isinstance(ts, str):
+        return ts
+    match = re.search(r"\sUTC([+-])(\d{1,2})(?::?(\d{2}))?$", ts)
+    if match:
+        sign, hour, minute = match.groups()
+        hour = hour.zfill(2)
+        minute = minute or "00"
+        repl = f"{sign}{hour}:{minute}"
+        ts = ts[: match.start()] + repl
+    return ts
+
 IMPUTE_RULES = {
     "ZERO": [
         'is_one_way','has_return','is_direct_leg0','is_direct_leg1',
@@ -361,7 +380,12 @@ def create_initial_datetime_features(df):
             if not pd.api.types.is_datetime64_any_dtype(df[col]):
                 current_dtype = df[col].dtype
                 print(f"Converting column {col} (current dtype: {current_dtype}) to datetime.")
-                df[col] = pd.to_datetime(df[col].astype(str), errors='coerce')
+                df[col] = pd.to_datetime(
+                    df[col]
+                    .astype(str)
+                    .map(_normalise_utc_offset),
+                    errors="coerce",
+                )
     return df
 
 def create_remaining_features(df, is_train=True):
