@@ -26,7 +26,7 @@ IMPUTE_RULES = {
     "ZERO": [
         'is_one_way','has_return','is_direct_leg0','is_direct_leg1',
         'both_direct','has_baggage','has_fees','is_cheapest',
-        'is_most_expensive','n_segments_leg0','n_segments_leg1',
+        'is_most_expensive','num_segments_leg0','num_segments_leg1',
         'total_segments','is_popular_route','is_major_carrier',
     ],
     "MINUS1": [
@@ -294,13 +294,6 @@ def create_features(df):
         feat = {}
     legs0 = df.get("legs0_duration")
     legs1 = df.get("legs1_duration")
-    for leg in (0, 1):
-        pat = rf'^legs{leg}_segments\d+_departureFrom_airport_iata$'
-        seg_cols = [c for c in df.columns if re.match(pat, c)]
-        feat[f"n_segments_leg{leg}"] = (
-            df[seg_cols].notna().sum(axis=1).astype("int8") if seg_cols else 0
-        )
-    feat["total_segments"] = feat["n_segments_leg0"] + feat["n_segments_leg1"]
     feat["is_one_way"] = (
         df["legs1_duration"].isna() |
         df["legs1_segments0_departureFrom_airport_iata"].isna()
@@ -346,10 +339,6 @@ def create_features(df):
             feat[f"{col}_weekday"]   = dt.dt.weekday.astype("float16")
             h = dt.dt.hour
             feat[f"{col}_business_time"] = (((6 <= h) & (h <= 9)) | ((17 <= h) & (h <= 20))).astype("int8")
-    feat["is_direct_leg0"] = (feat["n_segments_leg0"] == 1).astype("int8")
-    feat["is_direct_leg1"] = np.where(feat["is_one_way"] == 1, 0,
-                                      (feat["n_segments_leg1"] == 1).astype("int8"))
-    feat["both_direct"]    = (feat["is_direct_leg0"] & feat["is_direct_leg1"]).astype("int8")
     feat["is_vip_freq"]  = ((df["isVip"] == 1) | (feat["n_ff_programs"] > 0)).astype("int8")
     feat["has_access_tp"] = (df["pricingInfo_isAccessTP"] == 1).astype("int8")
     feat["group_size"]    = df.groupby("ranker_id")["Id"].transform("count")
@@ -420,6 +409,13 @@ def create_remaining_features(df, is_train=True):
         else:
             df[f'num_segments_leg{leg}'] = 0
     df['total_segments'] = (df['num_segments_leg0'] + df['num_segments_leg1']).astype(np.int8)
+    df['is_direct_leg0'] = (df['num_segments_leg0'] == 1).astype(np.int8)
+    df['is_direct_leg1'] = np.where(
+        df.get('is_one_way', 0) == 1,
+        0,
+        (df['num_segments_leg1'] == 1).astype(np.int8)
+    )
+    df['both_direct'] = (df['is_direct_leg0'] & df['is_direct_leg1']).astype(np.int8)
     for dur_col in ['legs0_duration', 'legs1_duration']:
         if not np.issubdtype(df[dur_col].dtype, np.number):
             df[dur_col] = pd.to_numeric(df[dur_col].astype(str), errors='coerce')
