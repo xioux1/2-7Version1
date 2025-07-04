@@ -91,3 +91,10 @@ def test_log_mem_usage_outputs(capsys):
     utils.log_mem_usage(df, "dummy")
     captured = capsys.readouterr()
     assert "dummy" in captured.out
+
+
+def test_create_initial_datetime_features_normalises_offsets():
+    df = pd.DataFrame({"legs0_departureAt": ["2024-08-21T16:00:00 UTC+5"]})
+    out = utils.create_initial_datetime_features(df.copy())
+    ts = out.loc[0, "legs0_departureAt"]
+    assert ts.utcoffset().total_seconds() == 5 * 3600
