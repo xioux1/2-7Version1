@@ -146,7 +146,6 @@ def test_create_features_price_and_duration_diffs():
 
     out = utils.create_features(df.copy())
 
-    assert 'price_diff_from_median' in out.columns
     assert 'duration_diff_from_min' in out.columns
     assert 'price_rank' in out.columns
     assert 'totalPrice_rank_in_group' in out.columns
@@ -155,7 +154,6 @@ def test_create_features_price_and_duration_diffs():
     expected_dur_diff = [0.0, 10.0, 0.0, 20.0]
     expected_price_rank = [1.0, 2.0, 2.0, 1.0]
     expected_rank_norm = [0.5, 1.0, 1.0, 0.5]
-    assert out['price_diff_from_median'].tolist() == expected_price_diff
     assert out['price_from_median'].tolist() == expected_price_diff
     assert out['duration_diff_from_min'].tolist() == expected_dur_diff
     assert out['price_rank'].tolist() == expected_price_rank

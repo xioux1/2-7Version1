@@ -371,9 +371,6 @@ def create_features(df):
     feat["price_from_median"] = (
         df["totalPrice"] - grp["totalPrice"].transform("median")
     )
-    feat["price_diff_from_median"] = (
-        df["totalPrice"] - grp["totalPrice"].transform("median")
-    )
     feat["duration_diff_from_min"] = (
         df["total_duration"] - grp["total_duration"].transform("min")
     )
