@@ -346,9 +346,15 @@ def create_features(df):
     ).astype("int8")
     feat["has_return"] = 1 - feat["is_one_way"]
     grp = df.groupby("ranker_id")
-    feat["price_pct_rank"]    = grp["totalPrice"].rank(pct=True)
-    feat["duration_rank"]     = grp["total_duration"].rank()
+    grp_sizes = grp["totalPrice"].transform("size")
+    feat["price_rank"] = grp["totalPrice"].rank(method="first")
+    feat["totalPrice_rank_in_group"] = feat["price_rank"] / grp_sizes
+    feat["price_pct_rank"] = grp["totalPrice"].rank(pct=True)
+    feat["duration_rank"] = grp["total_duration"].rank()
     feat["duration_pct_rank"] = grp["total_duration"].rank(pct=True)
+    feat["price_from_median"] = (
+        df["totalPrice"] - grp["totalPrice"].transform("median")
+    )
     feat["price_diff_from_median"] = (
         df["totalPrice"] - grp["totalPrice"].transform("median")
     )

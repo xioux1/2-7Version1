@@ -31,3 +31,6 @@ def test_preprocess_adds_duration_pct_rank():
     assert 'duration_pct_rank' in processed.columns
     assert 'price_diff_from_median' in processed.columns
     assert 'duration_diff_from_min' in processed.columns
+    assert 'price_rank' in processed.columns
+    assert 'totalPrice_rank_in_group' in processed.columns
+    assert 'price_from_median' in processed.columns
