@@ -127,7 +127,6 @@ def prepare_matrices(train_df_processed, test_df_processed):
         'free_cancel', 'free_exchange',
         'ff_SU', 'ff_S7', 'ff_U6', 'ff_TK',
         'has_fees', 'has_baggage',
-        'price_rank', 'totalPrice_rank_in_group', 'price_from_median',
         'tax_percentage',
         'n_segments_leg0', 'n_segments_leg1',
         'group_size_log', 'has_access_tp',
