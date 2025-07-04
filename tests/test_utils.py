@@ -30,6 +30,26 @@ def test_unify_nan_strategy_flags_and_nan_preservation():
         assert f"{col}_missing" in out.columns
 
 
+def test_create_remaining_features_leaves_nan_for_minus1_cols():
+    df = pd.DataFrame(
+        {
+            "ranker_id": [1],
+            "requestDate": [pd.to_datetime("2024-01-01")],
+            "legs0_departureAt": [pd.NaT],
+            "legs0_duration": [50],
+            "legs1_duration": [60],
+            "totalPrice": [100.0],
+            "taxes": [10.0],
+        }
+    )
+    out = utils.create_remaining_features(df.copy(), is_train=True)
+    assert pd.isna(out.loc[0, "booking_lead_days"])
+
+    out2 = utils.unify_nan_strategy(out.copy())
+    assert out2.loc[0, "booking_lead_days"] == -1
+    assert out2.loc[0, "booking_lead_days_missing"] == 1
+
+
 def test_clean_features_drops_low_var_and_corr():
     X = pd.DataFrame({
         "single_val": [1, 1, 1, 1],

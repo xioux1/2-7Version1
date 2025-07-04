@@ -66,8 +66,8 @@ def unify_nan_strategy(df: pd.DataFrame) -> pd.DataFrame:
     directly except for those listed under ``ZERO`` or ``MINUS1``.
     ``ZERO`` columns have NaNs replaced with ``0`` (while recording
     the missingness) so they can remain integer typed. ``MINUS1``
-    columns keep the ``-1`` sentinel value, as it carries semantic
-    meaning for those features.  Missing flags are added for every
+    columns have NaNs replaced with ``-1`` and corresponding
+    ``*_missing`` indicators added.  Missing flags are added for every
     column that contains NaNs.
     """
 
@@ -395,13 +395,18 @@ def create_remaining_features(df, is_train=True):
         if col in df.columns and pd.api.types.is_datetime64_any_dtype(df[col]):
             df[col + '_hour'] = df[col].dt.hour.astype(np.int8, errors='ignore')
             df[col + '_dow'] = df[col].dt.dayofweek.astype(np.int8, errors='ignore')
-    if 'legs0_departureAt' in df.columns and 'requestDate' in df.columns and \
-       pd.api.types.is_datetime64_any_dtype(df['legs0_departureAt']) and \
-       pd.api.types.is_datetime64_any_dtype(df['requestDate']):
-        df['booking_lead_days'] = (df['legs0_departureAt'] - df['requestDate']).dt.total_seconds() / (24 * 60 * 60)
-        df['booking_lead_days'] = df['booking_lead_days'].fillna(-1).astype(np.float32)
+    if (
+        'legs0_departureAt' in df.columns
+        and 'requestDate' in df.columns
+        and pd.api.types.is_datetime64_any_dtype(df['legs0_departureAt'])
+        and pd.api.types.is_datetime64_any_dtype(df['requestDate'])
+    ):
+        df['booking_lead_days'] = (
+            df['legs0_departureAt'] - df['requestDate']
+        ).dt.total_seconds() / (24 * 60 * 60)
     else:
-        df['booking_lead_days'] = -1.0
+        df['booking_lead_days'] = np.nan
+    df['booking_lead_days'] = df['booking_lead_days'].astype(np.float32)
     if 'searchRoute' in df.columns:
         df['is_round_trip'] = df['searchRoute'].astype(str).str.contains('/').astype(np.int8)
     else:
