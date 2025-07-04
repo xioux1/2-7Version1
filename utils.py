@@ -349,6 +349,12 @@ def create_features(df):
     feat["price_pct_rank"]    = grp["totalPrice"].rank(pct=True)
     feat["duration_rank"]     = grp["total_duration"].rank()
     feat["duration_pct_rank"] = grp["total_duration"].rank(pct=True)
+    feat["price_diff_from_median"] = (
+        df["totalPrice"] - grp["totalPrice"].transform("median")
+    )
+    feat["duration_diff_from_min"] = (
+        df["total_duration"] - grp["total_duration"].transform("min")
+    )
     feat["is_cheapest"]       = (grp["totalPrice"].transform("min") == df["totalPrice"]).astype("int8")
     feat["is_most_expensive"] = (grp["totalPrice"].transform("max") == df["totalPrice"]).astype("int8")
     ff = df["frequentFlyer"].fillna("").astype(str)

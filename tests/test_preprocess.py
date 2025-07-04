@@ -29,3 +29,5 @@ def test_preprocess_adds_duration_pct_rank():
 
     processed = pipeline.preprocess_dataframe(df.copy(), is_train=True)
     assert 'duration_pct_rank' in processed.columns
+    assert 'price_diff_from_median' in processed.columns
+    assert 'duration_diff_from_min' in processed.columns
