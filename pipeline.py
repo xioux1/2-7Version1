@@ -4,6 +4,7 @@ import lightgbm as lgb
 from sklearn.model_selection import GroupKFold
 from sklearn.preprocessing import LabelEncoder
 import gc
+import os
 
 from utils import (
     create_initial_datetime_features,
@@ -331,6 +332,12 @@ def train_model(X, y, X_test, ranker_ids, cat_features, params=None, n_folds=5):
         'verbose': -1,
         'seed': 42
         }
+    # Allow optional GPU training when the USE_GPU environment variable is set
+    use_gpu = os.getenv("USE_GPU", "0") == "1"
+    if use_gpu:
+        params.setdefault("device", "gpu")
+        params.setdefault("gpu_platform_id", 0)
+        params.setdefault("gpu_device_id", 0)
     group_kfold = GroupKFold(n_splits=n_folds)
     oof_preds_scores = np.zeros(len(X))
     test_preds_scores = np.zeros(len(X_test))
