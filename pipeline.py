@@ -332,8 +332,8 @@ def train_model(X, y, X_test, ranker_ids, cat_features, params=None, n_folds=5):
         'verbose': -1,
         'seed': 42
         }
-    # Allow optional GPU training when the USE_GPU environment variable is set
-    use_gpu = os.getenv("USE_GPU", "0") == "1"
+    # Allow optional GPU training when USE_GPU=1 or Kaggle exposes NVIDIA_VISIBLE_DEVICES
+    use_gpu = os.getenv("USE_GPU", "0") == "1" or "NVIDIA_VISIBLE_DEVICES" in os.environ
     if use_gpu:
         params.setdefault("device", "gpu")
         params.setdefault("gpu_platform_id", 0)
