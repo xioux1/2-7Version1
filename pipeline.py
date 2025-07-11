@@ -338,6 +338,9 @@ def train_model(X, y, X_test, ranker_ids, cat_features, params=None, n_folds=5):
         params.setdefault("device", "gpu")
         params.setdefault("gpu_platform_id", 0)
         params.setdefault("gpu_device_id", 0)
+        print("Training with GPU")
+    else:
+        print("Training with CPU")
     group_kfold = GroupKFold(n_splits=n_folds)
     oof_preds_scores = np.zeros(len(X))
     test_preds_scores = np.zeros(len(X_test))
