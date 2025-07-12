@@ -331,33 +331,11 @@ def train_model(X, y, X_test, ranker_ids, cat_features, params=None, n_folds=5):
         'verbose': -1,
         'seed': 42
         }
-    # Allow optional GPU training when USE_GPU=1 or Kaggle exposes NVIDIA_VISIBLE_DEVICES
-    use_gpu = os.getenv("USE_GPU", "0") == "1" or "NVIDIA_VISIBLE_DEVICES" in os.environ
-    gpu_supported = False
-    if use_gpu:
-        try:
-            # LightGBM 4.1+ exposes get_device_name when compiled with GPU
-            if hasattr(lgb, "get_device_name"):
-                lgb.get_device_name(0)
-            else:
-                raise AttributeError
-            gpu_supported = True
-        except Exception:
-            print(
-                "Warning: GPU requested but unavailable; falling back to CPU."
-            )
-            use_gpu = False
-    if use_gpu and gpu_supported:
-        params.setdefault("device", "gpu")
-        params.setdefault("gpu_platform_id", 0)
-        params.setdefault("gpu_device_id", 0)
-        print("Training with GPU")
-    else:
-        # ensure no stale GPU params remain
-        params.pop("device", None)
-        params.pop("gpu_platform_id", None)
-        params.pop("gpu_device_id", None)
-        print("Training with CPU")
+    # Train exclusively on CPU; remove any lingering GPU parameters
+    params.pop("device", None)
+    params.pop("gpu_platform_id", None)
+    params.pop("gpu_device_id", None)
+    print("Training with CPU")
     group_kfold = GroupKFold(n_splits=n_folds)
     oof_preds_scores = np.zeros(len(X))
     test_preds_scores = np.zeros(len(X_test))
