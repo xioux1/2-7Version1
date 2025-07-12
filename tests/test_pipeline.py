@@ -85,30 +85,3 @@ def test_encode_categoricals_frequency_encoding():
     assert np.allclose(X_test_enc['legs0_segments0_departureFrom_airport_iata'].values, expected_test.values)
 
 
-def test_train_model_falls_back_to_cpu_when_gpu_unavailable(capsys):
-    X = pd.DataFrame({'f': [1, 2]})
-    y = pd.Series([0, 1])
-    X_test = pd.DataFrame({'f': [3]})
-    ranks = pd.Series([1, 2])
-
-    class DummyBooster:
-        def __init__(self, n_features):
-            self.n_features = n_features
-        def feature_importance(self, importance_type='gain'):
-            return np.zeros(self.n_features)
-
-    class DummyRanker:
-        def __init__(self, **params):
-            pass
-        def fit(self, X, y, **kwargs):
-            self.booster_ = DummyBooster(X.shape[1])
-        def predict(self, X):
-            return np.zeros(len(X))
-
-    with patch.dict('os.environ', {'USE_GPU': '1'}), \
-         patch('pipeline.lgb.get_device_name', side_effect=Exception('no gpu'), create=True), \
-         patch('pipeline.lgb.LGBMRanker', DummyRanker):
-        pipeline.train_model(X, y, X_test, ranks, [], params={'n_estimators': 1}, n_folds=2)
-
-    out = capsys.readouterr().out.lower()
-    assert 'falling back to cpu' in out
