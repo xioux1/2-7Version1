@@ -428,7 +428,7 @@ def create_features(df):
     del feat, seg_counts, present_airlines, ff_flags, ff, grp, grp_sizes
     gc.collect()
     for col in df.select_dtypes(include="object").columns:
-        if pd.api.types.is_categorical_dtype(df[col]):
+        if isinstance(df[col].dtype, pd.CategoricalDtype):
             if "missing" not in df[col].cat.categories:
                 df[col] = df[col].cat.add_categories(["missing"])
                 df[col] = df[col].fillna("missing")
