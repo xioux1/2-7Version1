@@ -85,3 +85,37 @@ def test_encode_categoricals_frequency_encoding():
     assert np.allclose(X_test_enc['legs0_segments0_departureFrom_airport_iata'].values, expected_test.values)
 
 
+
+def test_load_data_test_frac_samples_groups():
+    train_data = pd.DataFrame({
+        'Id': [1, 2, 3, 4, 5, 6],
+        'ranker_id': [1, 1, 2, 2, 3, 3],
+        'selected': [0, 1, 0, 1, 0, 1]
+    })
+    test_data = pd.DataFrame({
+        'Id': [7, 8, 9, 10],
+        'ranker_id': [1, 2, 3, 3]
+    })
+    sample_submission = pd.DataFrame({
+        'Id': [7, 8, 9, 10],
+        'ranker_id': [1, 2, 3, 3],
+        'selected': [0, 0, 0, 0]
+    })
+
+    def mock_read_parquet(path, columns=None):
+        if 'train.parquet' in path:
+            df = train_data
+        elif 'test.parquet' in path and 'sample_submission' not in path:
+            df = test_data
+        else:
+            df = sample_submission
+        return df if columns is None else df[columns]
+
+    with patch('pipeline.pd.read_parquet', side_effect=mock_read_parquet), \
+         patch.object(pipeline, 'initial_core_columns', ['Id', 'ranker_id', 'selected']), \
+         patch.object(pipeline, 'initial_core_columns_test', ['Id', 'ranker_id']), \
+         patch('pipeline.log_mem_usage', lambda df, msg: None):
+        _, test_df, _, _ = pipeline.load_data(sample_frac=1.0, random_seed=0, test_frac=0.5)
+
+    assert test_df['ranker_id'].nunique() == 1
+

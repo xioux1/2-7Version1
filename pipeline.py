@@ -86,7 +86,19 @@ NON_INFORMATIVE_COLS = [
 ]
 
 
-def load_data(sample_frac=0.5, random_seed=42):
+def load_data(sample_frac=0.5, random_seed=42, test_frac=None):
+    """Load the train and test datasets with optional sampling.
+
+Parameters
+----------
+sample_frac : float, optional
+    Fraction of ranker_id groups to load from the training data.
+random_seed : int, optional
+    Seed for the random number generator.
+test_frac : float or None, optional
+    When provided, the same sampling strategy is applied to the test set using this fraction.
+    If None, the full test set is loaded.
+"""
     print("Loading a subset of columns for train_df...")
     train_df = pd.read_parquet('/kaggle/input/aeroclub-recsys-2025/train.parquet', columns=initial_core_columns)
     log_mem_usage(train_df, "train_df loaded")
@@ -104,6 +116,12 @@ def load_data(sample_frac=0.5, random_seed=42):
     print("Loading a subset of columns for test_df...")
     test_df = pd.read_parquet('/kaggle/input/aeroclub-recsys-2025/test.parquet', columns=initial_core_columns_test)
     log_mem_usage(test_df, "test_df loaded")
+    if test_frac is not None:
+        unique_test_ids = test_df["ranker_id"].unique()
+        n_keep_test = int(len(unique_test_ids) * test_frac)
+        sampled_test_rankers = rng.choice(unique_test_ids, size=n_keep_test, replace=False)
+        test_df = test_df[test_df["ranker_id"].isin(sampled_test_rankers)].reset_index(drop=True)
+        log_mem_usage(test_df, "test_df sampled")
     sample_submission_df = pd.read_parquet('/kaggle/input/aeroclub-recsys-2025/sample_submission.parquet')
 
     if 'Id' in test_df.columns and 'ranker_id' in test_df.columns:
