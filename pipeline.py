@@ -156,7 +156,7 @@ def preprocess_dataframe(df, is_train=True):
     log_mem_usage(df, f"{'train' if is_train else 'test'} final")
     return df
 
-def prepare_matrices(train_df_processed, test_df_processed, drop_cols=None):
+def prepare_matrices(train_df_processed, test_df_processed, drop_cols=None, corr_thresh=0.95):
     TOP_N = 10
     airport_col = 'legs0_segments0_departureFrom_airport_iata'
     freq = train_df_processed[airport_col].value_counts()
@@ -167,7 +167,6 @@ def prepare_matrices(train_df_processed, test_df_processed, drop_cols=None):
         df['dep_is_hub'] = df[airport_col].isin(top_hubs).astype('int8')
 
     # Check correlation between taxes and price-based features
-    corr_thresh = 0.95
     if {
         'taxes',
         'price_from_median'
